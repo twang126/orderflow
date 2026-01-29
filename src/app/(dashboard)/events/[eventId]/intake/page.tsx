@@ -118,62 +118,42 @@ export default function IntakePage() {
   }, [])
 
   const handleSubmit = async () => {
-    if (!event || !customerName.trim() || cart.size === 0) return
+    if (!event || !customerName.trim() || cart.size === 0 || submitting) return
 
     setSubmitting(true)
 
     try {
-      // Create customer
-      const { data: customer, error: customerError } = await supabase
-        .from("customers")
-        .insert({
-          name: customerName.trim(),
-          phone: customerPhone.trim() || null,
-        })
-        .select()
-        .single()
-
-      if (customerError) throw customerError
-
-      // Get next order number
-      const { data: orderNumber } = await supabase
-        .rpc("get_next_order_number", { p_event_id: event.id })
-
-      // Create order
-      const { data: order, error: orderError } = await supabase
-        .from("orders")
-        .insert({
-          event_id: event.id,
-          customer_id: customer.id,
-          order_number: orderNumber || 1,
-        })
-        .select()
-        .single()
-
-      if (orderError) throw orderError
-
-      // Create order items
-      const orderItems: { order_id: string; item_id: string; modifications: string | null }[] = []
+      // Build items array for the RPC call
+      const items: { item_id: string; modifications: string }[] = []
       cart.forEach((cartItem) => {
         const mods = (cartItem as CartItemWithMods).modifications
         for (let i = 0; i < cartItem.quantity; i++) {
-          orderItems.push({
-            order_id: order.id,
+          items.push({
             item_id: cartItem.item.id,
-            modifications: mods[i] || null,
+            modifications: mods[i] || "",
           })
         }
       })
 
-      const { error: itemsError } = await supabase
-        .from("order_items")
-        .insert(orderItems)
+      // Single RPC call to create everything
+      const { error } = await supabase.rpc("create_order", {
+        p_event_id: event.id,
+        p_customer_name: customerName.trim(),
+        p_customer_phone: customerPhone.trim(),
+        p_items: items,
+      })
 
-      if (itemsError) throw itemsError
+      if (error) throw error
 
       // Success - redirect to orders page
       router.push(`/events/${eventId}/orders`)
-    } catch (error) {
+    } catch (error: unknown) {
+      // Ignore abort errors (caused by navigation or component unmount)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      if (errorMessage.includes("AbortError") || errorMessage.includes("aborted")) {
+        console.log("Request aborted, likely due to navigation")
+        return
+      }
       console.error("Error creating order:", error)
       alert("Error creating order. Please try again.")
     } finally {

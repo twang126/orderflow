@@ -134,15 +134,32 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
+  const pathname = usePathname()
+  const { user, shop, loading: authLoading } = useAuth()
   const [isRedirecting, setIsRedirecting] = useState(false)
 
   useEffect(() => {
-    if (!authLoading && !user && !isRedirecting) {
+    if (authLoading) return
+
+    if (!user && !isRedirecting) {
       setIsRedirecting(true)
       router.push("/login")
+      return
     }
-  }, [authLoading, user, router, isRedirecting])
+
+    // If user is logged in but has no shop, redirect to setup (unless already there)
+    if (user && !shop && !user.user_metadata?.shop_id && pathname !== "/setup" && !isRedirecting) {
+      setIsRedirecting(true)
+      router.push("/setup")
+      return
+    }
+
+    // If user has shop but is on setup page, redirect to events
+    if (user && (shop || user.user_metadata?.shop_id) && pathname === "/setup" && !isRedirecting) {
+      setIsRedirecting(true)
+      router.push("/events")
+    }
+  }, [authLoading, user, shop, router, isRedirecting, pathname])
 
   // Show spinner while loading auth state or if no user (redirect in progress)
   if (authLoading || !user) {
