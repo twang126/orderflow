@@ -25,6 +25,7 @@ export default function IntakePage() {
 
   const [event, setEvent] = useState<Event | null>(null)
   const [items, setItems] = useState<Item[]>([])
+  const [pendingCount, setPendingCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [cart, setCart] = useState<Map<string, CartItemWithMods>>(new Map())
   const [customerName, setCustomerName] = useState("")
@@ -55,6 +56,15 @@ export default function IntakePage() {
             setItems(itemsData)
           }
         }
+
+        // Fetch pending orders count
+        const { count } = await supabase
+          .from("orders")
+          .select("*", { count: "exact", head: true })
+          .eq("event_id", eventId)
+          .is("completed_at", null)
+
+        setPendingCount(count || 0)
       }
       setLoading(false)
     }
@@ -145,8 +155,12 @@ export default function IntakePage() {
 
       if (error) throw error
 
-      // Success - redirect to orders page
-      router.push(`/events/${eventId}/orders`)
+      // Success - reset form for next order
+      setCart(new Map())
+      setCustomerName("")
+      setCustomerPhone("")
+      setStep("select")
+      setPendingCount(prev => prev + 1)
     } catch (error: unknown) {
       // Ignore abort errors (caused by navigation or component unmount)
       const errorMessage = error instanceof Error ? error.message : String(error)
@@ -227,10 +241,13 @@ export default function IntakePage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
-        <div>
-          <h1 className="text-2xl font-bold">New Order</h1>
-          <p className="text-muted-foreground">{event.name}</p>
-        </div>
+        <h1 className="flex-1 text-2xl font-bold">New Order</h1>
+        {pendingCount > 0 && (
+          <div className="text-right">
+            <p className="text-2xl font-bold text-orange-600">{pendingCount}</p>
+            <p className="text-xs text-muted-foreground">pending</p>
+          </div>
+        )}
       </div>
 
       {step === "select" ? (

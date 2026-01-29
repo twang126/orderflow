@@ -18,7 +18,7 @@ interface OrderWithItems {
   id: string
   created_at: string
   completed_at: string | null
-  order_items: { item: Item }[]
+  order_items: { item_id: string; item: Item }[]
 }
 
 interface EventSummaryProps {
@@ -92,18 +92,19 @@ export function EventSummary({ eventId, menuId }: EventSummaryProps) {
     for (const order of orders) {
       for (const orderItem of order.order_items) {
         const item = orderItem.item
+        const itemId = orderItem.item_id
         totalItems++
         totalRevenue += Number(item.price)
 
-        if (!itemSalesMap[item.id]) {
-          itemSalesMap[item.id] = {
+        if (!itemSalesMap[itemId]) {
+          itemSalesMap[itemId] = {
             item,
             quantity: 0,
             revenue: 0,
           }
         }
-        itemSalesMap[item.id].quantity++
-        itemSalesMap[item.id].revenue += Number(item.price)
+        itemSalesMap[itemId].quantity++
+        itemSalesMap[itemId].revenue += Number(item.price)
       }
     }
 

@@ -172,24 +172,22 @@ export default function EventOrdersPage() {
   const itemCounts = useMemo(() => {
     const counts: Record<string, { item: Item; count: number }> = {}
 
-    orders.forEach(order => {
-      order.order_items.forEach(orderItem => {
-        const itemId = orderItem.item.id
-        if (!counts[itemId]) {
-          counts[itemId] = { item: orderItem.item, count: 0 }
-        }
-        counts[itemId].count++
+    // Only count items from completed orders
+    orders
+      .filter(order => order.completed_at !== null)
+      .forEach(order => {
+        order.order_items.forEach(orderItem => {
+          const itemId = orderItem.item_id
+          if (!counts[itemId]) {
+            counts[itemId] = { item: orderItem.item, count: 0 }
+          }
+          counts[itemId].count++
+        })
       })
-    })
 
-    // Sort by menu order (same order as items array)
-    const itemOrder = new Map(items.map((item, index) => [item.id, index]))
-    return Object.values(counts).sort((a, b) => {
-      const orderA = itemOrder.get(a.item.id) ?? Infinity
-      const orderB = itemOrder.get(b.item.id) ?? Infinity
-      return orderA - orderB
-    })
-  }, [orders, items])
+    // Sort by item code
+    return Object.values(counts).sort((a, b) => a.item.code.localeCompare(b.item.code))
+  }, [orders])
 
   if (loading) {
     return (
@@ -243,7 +241,7 @@ export default function EventOrdersPage() {
       <details className="bg-gray-50 rounded-lg border">
         <summary className="px-3 py-2 cursor-pointer text-sm font-medium text-gray-600 flex items-center gap-2">
           <BarChart3 className="h-4 w-4" />
-          Total Sold
+          Total Completed
           {itemCounts.length > 0 && (
             <span className="ml-auto text-gray-900 font-bold">
               {itemCounts.reduce((sum, { count }) => sum + count, 0)}
@@ -253,7 +251,7 @@ export default function EventOrdersPage() {
         <div className="px-3 pb-3 pt-1">
           <div className="flex flex-wrap gap-2">
             {itemCounts.length === 0 ? (
-              <span className="text-muted-foreground text-sm">No items sold yet</span>
+              <span className="text-muted-foreground text-sm">No items completed yet</span>
             ) : (
               itemCounts.map(({ item, count }) => (
                 <div
@@ -266,6 +264,7 @@ export default function EventOrdersPage() {
                   >
                     {item.code}
                   </span>
+                  <span className="text-gray-600">{item.name}</span>
                   <span className="font-bold text-gray-900">{count}</span>
                 </div>
               ))
