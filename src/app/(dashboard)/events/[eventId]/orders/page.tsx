@@ -87,6 +87,17 @@ export default function EventOrdersPage() {
   useEffect(() => {
     fetchOrders()
 
+    // Refetch when page becomes visible (handles tab switches and navigation)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchOrders()
+      }
+    }
+    const handleFocus = () => fetchOrders()
+
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    window.addEventListener("focus", handleFocus)
+
     // Subscribe to real-time changes
     const channel = supabase
       .channel(`orders:${eventId}`)
@@ -112,6 +123,9 @@ export default function EventOrdersPage() {
       .subscribe()
 
     return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+      window.removeEventListener("focus", handleFocus)
+      clearInterval(pollInterval)
       supabase.removeChannel(channel)
     }
   }, [eventId, fetchOrders, supabase])

@@ -33,6 +33,16 @@ export default function IntakePage() {
   const [submitting, setSubmitting] = useState(false)
   const [step, setStep] = useState<"select" | "finalize">("select")
 
+  // Fetch pending orders count
+  const fetchPendingCount = useCallback(async () => {
+    const { count } = await supabase
+      .from("orders")
+      .select("*", { count: "exact", head: true })
+      .eq("event_id", eventId)
+      .is("completed_at", null)
+    setPendingCount(count || 0)
+  }, [eventId, supabase])
+
   // Fetch event and items
   useEffect(() => {
     const fetchData = async () => {
@@ -57,13 +67,12 @@ export default function IntakePage() {
           }
         }
 
-        // Fetch pending orders count
+        // Fetch initial pending orders count
         const { count } = await supabase
           .from("orders")
           .select("*", { count: "exact", head: true })
           .eq("event_id", eventId)
           .is("completed_at", null)
-
         setPendingCount(count || 0)
       }
       setLoading(false)
@@ -71,6 +80,30 @@ export default function IntakePage() {
 
     fetchData()
   }, [eventId, supabase])
+
+  // Real-time subscription for pending orders count
+  useEffect(() => {
+    const channel = supabase
+      .channel(`intake-orders-${eventId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "orders",
+          filter: `event_id=eq.${eventId}`,
+        },
+        () => {
+          // Refetch count when orders are updated (e.g., completed)
+          fetchPendingCount()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [eventId, supabase, fetchPendingCount])
 
   const updateCart = useCallback((itemId: string, quantity: number) => {
     setCart((prev) => {
@@ -160,6 +193,7 @@ export default function IntakePage() {
       setCustomerName("")
       setCustomerPhone("")
       setStep("select")
+      // Update pending count immediately after creating order
       setPendingCount(prev => prev + 1)
     } catch (error: unknown) {
       // Ignore abort errors (caused by navigation or component unmount)
