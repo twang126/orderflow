@@ -286,9 +286,9 @@ function VerticalBarChart({
                 key={index}
                 className="flex-1 flex flex-col items-center justify-end h-full min-w-0"
               >
-                <div className="relative w-full flex justify-center">
+                <div className="relative w-full h-full flex items-end justify-center">
                   {item.value > 0 && data.length <= 8 && (
-                    <span className="absolute -top-5 text-[10px] font-medium text-center whitespace-nowrap">
+                    <span className="absolute top-0 text-[10px] font-medium text-center whitespace-nowrap">
                       {formatValue(item.value)}
                     </span>
                   )}
