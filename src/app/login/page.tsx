@@ -42,7 +42,7 @@ export default function LoginPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">OrderFlow</CardTitle>
           <CardDescription>
-            Simple ordering system for your coffee pop-up
+            Simple ordering system for pop-ups
           </CardDescription>
         </CardHeader>
         <CardContent>
