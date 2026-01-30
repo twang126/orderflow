@@ -125,7 +125,6 @@ export default function EventOrdersPage() {
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange)
       window.removeEventListener("focus", handleFocus)
-      clearInterval(pollInterval)
       supabase.removeChannel(channel)
     }
   }, [eventId, fetchOrders, supabase])
