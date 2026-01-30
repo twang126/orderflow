@@ -40,6 +40,9 @@ export default function EventsPage() {
   )
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
   const [alertState, setAlertState] = useState<{ title: string; description: string; type: "error" | "info" } | null>(null)
+  const [editDateEvent, setEditDateEvent] = useState<{ id: string; name: string; date: string } | null>(null)
+  const [editDateValue, setEditDateValue] = useState("")
+  const [savingDate, setSavingDate] = useState(false)
 
   const supabase = useMemo(() => createClient(), [])
 
@@ -128,6 +131,38 @@ export default function EventsPage() {
 
   const handleDeleteClick = (eventId: string, eventName: string) => {
     setDeleteConfirm({ id: eventId, name: eventName })
+  }
+
+  const handleEditDateClick = (eventId: string, eventName: string, eventDate: string) => {
+    setEditDateEvent({ id: eventId, name: eventName, date: eventDate })
+    setEditDateValue(eventDate)
+  }
+
+  const handleSaveDate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editDateEvent || !editDateValue) return
+
+    setSavingDate(true)
+    try {
+      const { error } = await supabase
+        .from("events")
+        .update({ date: editDateValue })
+        .eq("id", editDateEvent.id)
+
+      if (error) {
+        console.error("Error updating date:", error)
+        showAlert("Error Updating Date", error.message)
+        return
+      }
+
+      await refreshEvents()
+      setEditDateEvent(null)
+    } catch (error) {
+      console.error("Error updating date:", error)
+      showAlert("Error Updating Date", "Please try again.")
+    } finally {
+      setSavingDate(false)
+    }
   }
 
   const confirmDeleteEvent = async () => {
@@ -310,6 +345,7 @@ export default function EventsPage() {
                     onSelect={handleSelectEvent}
                     onUpdateStatus={handleUpdateStatus}
                     onDelete={handleDeleteClick}
+                    onEditDate={handleEditDateClick}
                     getStatusColor={getStatusColor}
                     getStatusLabel={getStatusLabel}
                   />
@@ -333,6 +369,7 @@ export default function EventsPage() {
                     onSelect={handleSelectEvent}
                     onUpdateStatus={handleUpdateStatus}
                     onDelete={handleDeleteClick}
+                    onEditDate={handleEditDateClick}
                     getStatusColor={getStatusColor}
                     getStatusLabel={getStatusLabel}
                   />
@@ -356,6 +393,7 @@ export default function EventsPage() {
                     onSelect={handleSelectEvent}
                     onUpdateStatus={handleUpdateStatus}
                     onDelete={handleDeleteClick}
+                    onEditDate={handleEditDateClick}
                     getStatusColor={getStatusColor}
                     getStatusLabel={getStatusLabel}
                   />
@@ -383,6 +421,38 @@ export default function EventsPage() {
         description={alertState?.description || ""}
         type={alertState?.type || "error"}
       />
+
+      <Dialog open={!!editDateEvent} onOpenChange={(open) => !open && setEditDateEvent(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Date for "{editDateEvent?.name}"</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveDate} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-event-date">Date</Label>
+              <Input
+                id="edit-event-date"
+                type="date"
+                value={editDateValue}
+                onChange={(e) => setEditDateValue(e.target.value)}
+                required
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditDateEvent(null)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={savingDate}>
+                {savingDate ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -393,6 +463,7 @@ function EventCard({
   onSelect,
   onUpdateStatus,
   onDelete,
+  onEditDate,
   getStatusColor,
   getStatusLabel,
 }: {
@@ -400,6 +471,7 @@ function EventCard({
   onSelect: (event: Event) => void
   onUpdateStatus: (eventId: string, status: EventStatus) => void
   onDelete: (eventId: string, eventName: string) => void
+  onEditDate: (eventId: string, eventName: string, eventDate: string) => void
   getStatusColor: (status: EventStatus) => string
   getStatusLabel: (status: EventStatus) => string
 }) {
@@ -446,6 +518,15 @@ function EventCard({
                 }}
               >
                 Mark as Complete
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onEditDate(event.id, event.name, event.date)
+                }}
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                Change Date
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"

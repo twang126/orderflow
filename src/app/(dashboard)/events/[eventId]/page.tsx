@@ -5,8 +5,16 @@ import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { createClient } from "@/lib/supabase/client"
-import { ArrowLeft, ShoppingBag, Menu as MenuIcon, BarChart3 } from "lucide-react"
+import { ArrowLeft, ShoppingBag, Menu as MenuIcon, BarChart3, Pencil } from "lucide-react"
 import type { Event, EventStatus } from "@/types"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
@@ -19,6 +27,9 @@ export default function EventDetailPage() {
 
   const [event, setEvent] = useState<Event | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isEditDateOpen, setIsEditDateOpen] = useState(false)
+  const [editDate, setEditDate] = useState("")
+  const [saving, setSaving] = useState(false)
 
   // Fetch event data
   useEffect(() => {
@@ -37,6 +48,38 @@ export default function EventDetailPage() {
 
     fetchEvent()
   }, [eventId, supabase])
+
+  const handleOpenEditDate = () => {
+    if (event) {
+      setEditDate(event.date)
+      setIsEditDateOpen(true)
+    }
+  }
+
+  const handleSaveDate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!event || !editDate) return
+
+    setSaving(true)
+    try {
+      const { error } = await supabase
+        .from("events")
+        .update({ date: editDate })
+        .eq("id", event.id)
+
+      if (error) {
+        console.error("Error updating date:", error)
+        return
+      }
+
+      setEvent({ ...event, date: editDate })
+      setIsEditDateOpen(false)
+    } catch (error) {
+      console.error("Error updating date:", error)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -70,14 +113,18 @@ export default function EventDetailPage() {
         <div className="flex-1">
           <h1 className="text-2xl font-bold">{event.name}</h1>
           <div className="flex items-center gap-3 mt-1">
-            <p className="text-muted-foreground">
+            <button
+              onClick={handleOpenEditDate}
+              className="text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+            >
               {new Date(event.date).toLocaleDateString("en-US", {
                 weekday: "long",
                 year: "numeric",
                 month: "long",
                 day: "numeric",
               })}
-            </p>
+              <Pencil className="h-3 w-3" />
+            </button>
             <Badge
               variant="outline"
               className={cn(
@@ -160,6 +207,39 @@ export default function EventDetailPage() {
           </Link>
         )}
       </div>
+
+      {/* Edit Date Dialog */}
+      <Dialog open={isEditDateOpen} onOpenChange={setIsEditDateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Event Date</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveDate} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-date">Date</Label>
+              <Input
+                id="edit-date"
+                type="date"
+                value={editDate}
+                onChange={(e) => setEditDate(e.target.value)}
+                required
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsEditDateOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
